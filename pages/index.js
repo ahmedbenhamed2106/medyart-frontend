@@ -1,5 +1,4 @@
-]import { useState, useEffect } from 'react';
-import '../styles/globals.css';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
   const [photos, setPhotos] = useState([]);
@@ -45,7 +44,7 @@ export default function Home() {
                   src={photo.image_url} 
                   alt={photo.title} 
                   className="w-full h-64 object-cover" 
-                  onContextMenu={(e) => e.preventDefault()} // Basic DRM right-click block
+                  onContextMenu={(e) => e.preventDefault()}
                 />
                 <div className="absolute inset-0 bg-transparent" />
               </div>
