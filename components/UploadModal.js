@@ -7,15 +7,38 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Resize image client-side to prevent huge payload timeouts
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) {
       setMessage('Please select a valid image file.');
       return;
     }
+    
     const reader = new FileReader();
-    reader.onload = () => {
-      setImageBase64(reader.result);
-      setMessage('');
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1920;
+        const scaleSize = MAX_WIDTH / img.width;
+        
+        if (scaleSize < 1) {
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+        } else {
+          canvas.width = img.width;
+          canvas.height = img.height;
+        }
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Compress image to JPEG at 85% quality
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setImageBase64(dataUrl);
+        setMessage('');
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   };
@@ -23,11 +46,8 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
   const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e) => {
@@ -42,29 +62,34 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!imageBase64) {
-      setMessage('Please choose or drop an image first.');
+      setMessage('Please select an image first.');
       return;
     }
+
     setLoading(true);
-    setMessage('');
+    setMessage('Publishing artwork...');
 
     try {
+      const token = localStorage.getItem('access_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/photos/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ title, image_url: imageBase64 })
       });
 
       if (res.ok) {
-        setMessage('Artwork published!');
+        setMessage('Artwork published successfully!');
         onUploadSuccess();
-        setTimeout(() => onClose(), 1200);
+        setTimeout(() => onClose(), 1000);
       } else {
-        const errData = await res.json();
-        setMessage(`Upload failed: ${JSON.stringify(errData)}`);
+        const errData = await res.json().catch(() => ({}));
+        setMessage(`Error: ${errData.detail || 'Failed to post artwork'}`);
       }
     } catch (err) {
-      setMessage('Failed to publish photo.');
+      setMessage('Network error. Check backend deployment.');
     }
     setLoading(false);
   };
@@ -85,13 +110,13 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
               required 
               value={title} 
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Cyberpunk Sunset"
+              placeholder="e.g., Cyberpunk Studio"
               className="w-full p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-sm focus:outline-none focus:border-indigo-500 text-white"
             />
           </div>
 
           <div>
-            <label className="text-xs text-neutral-400 block mb-1 font-medium">Upload Image (Drag & Drop or Browse)</label>
+            <label className="text-xs text-neutral-400 block mb-1 font-medium">Image File</label>
             <div 
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -104,12 +129,12 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
               {imageBase64 ? (
                 <div className="space-y-2">
                   <img src={imageBase64} alt="Preview" className="h-32 mx-auto rounded-lg object-cover" />
-                  <p className="text-xs text-cyan-400 font-semibold">Image Loaded Ready!</p>
+                  <p className="text-xs text-cyan-400 font-semibold">Image Ready!</p>
                 </div>
               ) : (
                 <label className="cursor-pointer block">
                   <span className="text-3xl block mb-2">📁</span>
-                  <span className="text-xs text-neutral-400 block">Drag & Drop your image file here, or <span className="text-cyan-400 underline font-semibold">Browse</span></span>
+                  <span className="text-xs text-neutral-400 block">Drag & Drop image here, or <span className="text-cyan-400 underline font-semibold">Browse</span></span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -128,7 +153,7 @@ export default function UploadModal({ onClose, onUploadSuccess }) {
             disabled={loading}
             className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
           >
-            {loading ? 'Publishing...' : 'Publish Artwork'}
+            {loading ? 'Processing...' : 'Publish Artwork'}
           </button>
         </form>
       </div>
