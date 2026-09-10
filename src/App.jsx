@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import './App.css';
 
 const TRANSLATIONS = {
   en: { 
@@ -31,8 +32,12 @@ export default function App() {
 
   // Auto-Login Session Management
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('medyart_user_session');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('medyart_user_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
   const [email, setEmail] = useState('');
@@ -43,21 +48,26 @@ export default function App() {
   const [is2FAEnabled, setIs2FAEnabled] = useState(() => {
     return localStorage.getItem('medyart_2fa') === 'true';
   });
-  const [otpInput, setOtpInput] = useState('');
 
   // Drag & Drop & Upload State
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [artTitle, setArtTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  
+  // Safe File Input Reference
   const fileInputRef = useRef(null);
 
   // Gallery Storage Persistence
   const [photos, setPhotos] = useState(() => {
-    const saved = localStorage.getItem('medyart_gallery_items');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, title: "Neon Cybernetic Art", image_url: "/bg.jpeg", likes: 42 }
-    ];
+    try {
+      const saved = localStorage.getItem('medyart_gallery_items');
+      return saved ? JSON.parse(saved) : [
+        { id: 1, title: "Neon Cybernetic Art", image_url: "/bg.jpeg", likes: 42 }
+      ];
+    } catch {
+      return [{ id: 1, title: "Neon Cybernetic Art", image_url: "/bg.jpeg", likes: 42 }];
+    }
   });
 
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
@@ -84,32 +94,46 @@ export default function App() {
     localStorage.removeItem('medyart_user_session');
   };
 
-  // Drag and Drop File Handlers
+  // Safe File Reader Processing
   const processFile = (file) => {
-    if (file && file.type.startsWith('image/')) {
+    if (!file) return;
+    if (file.type && file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onloadend = () => setSelectedFile(reader.result);
+      reader.onloadend = () => {
+        if (reader.result) setSelectedFile(reader.result);
+      };
       reader.readAsDataURL(file);
     } else {
-      alert("Invalid file type. Please upload an image (PNG, JPG, WEBP).");
+      alert("Invalid file type. Please upload an image file (PNG, JPG, WEBP).");
     }
   };
 
+  // Defensive Drag & Drop Event Handlers
   const handleDragOver = (e) => {
     e.preventDefault();
-    setIsDragging(true);
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
       processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Safe Trigger for Input Click
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -148,7 +172,7 @@ export default function App() {
       color: isDark ? '#ffffff' : '#111827',
       transition: 'all 0.3s ease'
     }}>
-      {/* Top Navbar */}
+      {/* Navigation Header */}
       <nav style={{
         display: 'flex',
         justify: 'space-between',
@@ -173,9 +197,8 @@ export default function App() {
           </span>
         </div>
 
-        {/* Global Controls */}
+        {/* Global Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Light / Dark Mode Switcher */}
           <button 
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
             style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #a855f7', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: isDark ? '#fff' : '#000', cursor: 'pointer', fontWeight: '600' }}
@@ -183,7 +206,6 @@ export default function App() {
             {isDark ? '☀️ Light' : '🌙 Dark'}
           </button>
 
-          {/* Background Opacity Slider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', padding: '6px 14px', borderRadius: '20px' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{t.opacity}</span>
             <input 
@@ -197,7 +219,6 @@ export default function App() {
             />
           </div>
 
-          {/* Language Picker */}
           <select 
             value={lang} 
             onChange={(e) => setLang(e.target.value)}
@@ -227,33 +248,18 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Container */}
+      {/* Main Content Area */}
       <div style={{ maxWidth: '960px', margin: '2rem auto', padding: '0 1rem' }}>
 
-        {/* 2FA Configuration Panel */}
+        {/* 2FA Panel */}
         {show2FAModal && user && (
           <div className={`glass-panel ${isDark ? 'glass-panel-dark' : 'glass-panel-light'}`} style={{ padding: '2rem', marginBottom: '2rem', border: '2px solid #a855f7' }}>
-            <h3 style={{ margin: 0 }}>🔐 2-Factor Authentication (2FA)</h3>
+            <h3 style={{ margin: 0 }}>🔐 2-Factor Authentication</h3>
             <p style={{ margin: '0.5rem 0 1rem' }}>Account: <strong>{user.email}</strong></p>
             <p>Security Status: <strong style={{ color: is2FAEnabled ? '#10b981' : '#ef4444' }}>{is2FAEnabled ? "PROTECTED (2FA ACTIVE)" : "UNPROTECTED"}</strong></p>
 
-            {!is2FAEnabled && (
-              <div style={{ margin: '1rem 0', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input 
-                  type="text" 
-                  placeholder="Enter Authenticator Code (e.g. 123456)" 
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value)}
-                  style={{ padding: '10px 14px', borderRadius: '12px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000' }}
-                />
-              </div>
-            )}
-
             <button 
-              onClick={() => {
-                setIs2FAEnabled(!is2FAEnabled);
-                setOtpInput('');
-              }}
+              onClick={() => setIs2FAEnabled(!is2FAEnabled)}
               style={{ padding: '10px 20px', borderRadius: '12px', border: 'none', background: is2FAEnabled ? '#ef4444' : '#10b981', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
             >
               {is2FAEnabled ? t.disable2FA : t.enable2FA}
@@ -261,7 +267,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Login Form (Displayed if no auto-login session exists) */}
+        {/* Login Form (When Logged Out) */}
         {!user ? (
           <div className={`glass-panel ${isDark ? 'glass-panel-dark' : 'glass-panel-light'}`} style={{ padding: '3rem 2rem', maxWidth: '420px', margin: '4rem auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -300,9 +306,9 @@ export default function App() {
             </form>
           </div>
         ) : (
-          /* Main Dashboard & Gallery */
+          /* Dashboard & Gallery */
           <>
-            {/* Interactive Upload Panel with Drag & Drop */}
+            {/* Drag and Drop Upload Box */}
             <div className={`glass-panel ${isDark ? 'glass-panel-dark' : 'glass-panel-light'}`} style={{ padding: '2rem', marginBottom: '2.5rem' }}>
               <h2 style={{ marginTop: 0, marginBottom: '1.5rem', fontWeight: '800' }}>✨ {t.upload}</h2>
               <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -314,36 +320,40 @@ export default function App() {
                   style={{ width: '100%', padding: '14px 18px', borderRadius: '16px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000', fontSize: '1rem', outline: 'none' }}
                 />
 
-                {/* Drag and Drop Container */}
+                {/* Always Mounted Drag & Drop Area */}
                 <div 
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  onClick={triggerFileInput}
                   className={isDragging ? 'drag-active' : ''}
                   style={{
                     padding: '3rem 2rem',
                     borderRadius: '20px',
                     border: `2px dashed ${isDragging ? '#ec4899' : '#a855f7'}`,
-                    backgroundColor: isDragging ? 'rgba(236,72,153,0.1)' : 'rgba(168,85,247,0.05)',
+                    backgroundColor: isDragging ? 'rgba(236,72,153,0.15)' : 'rgba(168,85,247,0.05)',
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease'
                   }}
                 >
                   <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: isDark ? '#e9d5ff' : '#6b21a8' }}>
-                    {selectedFile ? "✅ Image File Loaded! Click or Drag to Replace" : `📁 ${t.dragDrop}`}
+                    {selectedFile ? "✅ Image Loaded! Click or Drag to Change" : `📁 ${t.dragDrop}`}
                   </p>
+
                   <input 
                     ref={fileInputRef}
                     type="file" 
                     accept="image/*" 
-                    onChange={(e) => e.target.files[0] && processFile(e.target.files[0])} 
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        processFile(e.target.files[0]);
+                      }
+                    }} 
                     style={{ display: 'none' }} 
                   />
                 </div>
 
-                {/* Optional Direct URL Fallback */}
                 <input 
                   type="text" 
                   placeholder={t.imageUrl} 
@@ -352,7 +362,6 @@ export default function App() {
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(168,85,247,0.5)', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000', fontSize: '0.9rem', outline: 'none' }}
                 />
 
-                {/* Local Preview */}
                 {selectedFile && (
                   <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
                     <img src={selectedFile} alt="Preview" style={{ maxHeight: '180px', borderRadius: '16px', border: '2px solid #a855f7', objectFit: 'contain' }} />
@@ -365,11 +374,10 @@ export default function App() {
               </form>
             </div>
 
-            {/* Gallery Grid Section */}
+            {/* Gallery Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: '1.75rem' }}>
               {photos.map((photo) => (
                 <div key={photo.id} className={`glass-panel ${isDark ? 'glass-panel-dark' : 'glass-panel-light'}`} style={{ overflow: 'hidden' }}>
-                  {/* Protected Artwork Image Frame */}
                   <div style={{ position: 'relative', height: '240px', backgroundColor: '#000' }}>
                     <img src={photo.image_url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <div className="watermark-overlay">
