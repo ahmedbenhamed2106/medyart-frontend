@@ -10,7 +10,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Glassmorphism Card Style */
+/* Glassmorphism Panel Styles */
 .glass-panel {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -29,10 +29,10 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* Custom Drag & Drop Pulse */
+/* Active Drag Hover Visual */
 .drag-active {
   border-color: #ec4899 !important;
-  background-color: rgba(236, 72, 153, 0.15) !important;
+  background-color: rgba(236, 72, 153, 0.2) !important;
   transform: scale(1.01);
 }
 
@@ -42,19 +42,20 @@ body {
   inset: 0;
   display: flex;
   align-items: center;
-  justify: center;
+  justify-content: center;
   pointer-events: none;
   user-select: none;
 }
 
 .watermark-text {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 800;
   font-size: 0.85rem;
   letter-spacing: 2px;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 6px 14px;
   border-radius: 8px;
   backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.3);
 }
