@@ -1,127 +1,147 @@
 import React, { useState, useEffect } from 'react';
 
 const TRANSLATIONS = {
-  en: { dir: "ltr", title: "MedyArt", login: "Email Sign In", email: "Email Address", password: "Password", upload: "Publish Artwork", settings: "Security & 2FA", logout: "Logout", opacity: "Background Glass Opacity", enable2FA: "Enable 2FA", disable2FA: "Disable 2FA", protected: "Protected Content • MedyArt", publish: "Publish Artwork", artTitle: "Artwork Title", imageUrl: "Image Direct Link", dragDrop: "Click or Select Local File" },
-  fr: { dir: "ltr", title: "MedyArt", login: "Connexion par Email", email: "Adresse Email", password: "Mot de passe", upload: "Publier une œuvre", settings: "Sécurité & 2FA", logout: "Déconnexion", opacity: "Opacité du verre", enable2FA: "Activer 2FA", disable2FA: "Désactiver 2FA", protected: "Contenu Protégé • MedyArt", publish: "Publier", artTitle: "Titre de l'œuvre", imageUrl: "Lien Direct de l'Image", dragDrop: "Cliquez pour choisir un fichier" },
-  ar: { dir: "rtl", title: "ميدي آرت", login: "تسجيل الدخول بالبريد", email: "البريد الإلكتروني", password: "كلمة المرور", upload: "نشر عمل فني", settings: "الأمان و 2FA", logout: "تسجيل الخروج", opacity: "شفافية الخلفية الزجاجية", enable2FA: "تفعيل 2FA", disable2FA: "إلغاء 2FA", protected: "محتوى محمي • MedyArt", publish: "نشر العمل", artTitle: "عنوان العمل الفني", imageUrl: "رابط الصورة المباشر", dragDrop: "اضغط لاختيار ملف من جهازك" },
-  es: { dir: "ltr", title: "MedyArt", login: "Iniciar con Email", email: "Correo Electrónico", password: "Contraseña", upload: "Publicar Obra", settings: "Seguridad y 2FA", logout: "Cerrar Sesión", opacity: "Opacidad del Cristal", enable2FA: "Habilitar 2FA", disable2FA: "Deshabilitar 2FA", protected: "Contenido Protegido • MedyArt", publish: "Publicar Obra", artTitle: "Título", imageUrl: "Enlace de Imagen", dragDrop: "Seleccionar Archivo Local" }
+  en: { title: "MedyArt", login: "Email Sign In", email: "Email Address", password: "Password", upload: "Publish Artwork", settings: "Security & 2FA", logout: "Logout", opacity: "Background Opacity", theme: "Theme", enable2FA: "Enable 2FA", disable2FA: "Disable 2FA", protected: "Protected • MedyArt", publish: "Publish Artwork", artTitle: "Artwork Title", imageUrl: "Image Link", dragDrop: "Upload File" },
+  fr: { title: "MedyArt", login: "Connexion", email: "Email", password: "Mot de passe", upload: "Publier", settings: "Sécurité & 2FA", logout: "Déconnexion", opacity: "Opacité Fond", theme: "Thème", enable2FA: "Activer 2FA", disable2FA: "Désactiver 2FA", protected: "Protégé • MedyArt", publish: "Publier", artTitle: "Titre", imageUrl: "Lien Image", dragDrop: "Choisir un fichier" },
+  ar: { title: "ميدي آرت", login: "تسجيل الدخول", email: "البريد الإلكتروني", password: "كلمة المرور", upload: "نشر عمل", settings: "الأمان و 2FA", logout: "خروج", opacity: "شفافية الخلفية", theme: "المظهر", enable2FA: "تفعيل 2FA", disable2FA: "إلغاء 2FA", protected: "محمي • MedyArt", publish: "نشر", artTitle: "العنوان", imageUrl: "رابط الصورة", dragDrop: "اختر ملف" }
 };
 
 export default function App() {
   const [lang, setLang] = useState('en');
-  const [glassOpacity, setGlassOpacity] = useState(0.75);
-  
+  const [theme, setTheme] = useState('dark'); // 'dark' or 'light'
+  const [glassOpacity, setGlassOpacity] = useState(0.85);
+
+  // Persistent Auto-Login State
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('medyart_session');
+    const saved = localStorage.getItem('medyart_user_session');
     return saved ? JSON.parse(saved) : null;
   });
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // 2FA Security State
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(() => {
+    return localStorage.getItem('medyart_2fa') === 'true';
+  });
+  const [otpCode, setOtpCode] = useState('');
+
+  // Art Gallery & Upload State
   const [artTitle, setArtTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  
   const [photos, setPhotos] = useState(() => {
-    const saved = localStorage.getItem('medyart_gallery');
+    const saved = localStorage.getItem('medyart_gallery_items');
     return saved ? JSON.parse(saved) : [
-      { id: 1, title: "Neon Cyber Matrix", image_url: "/bg.jpeg", likes: 32 }
+      { id: 1, title: "Cyber Canvas", image_url: "/bg.jpeg", likes: 12 }
     ];
   });
 
-  const [show2FAModal, setShow2FAModal] = useState(false);
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-
   const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  const isDark = theme === 'dark';
 
+  // Save persistent data
   useEffect(() => {
-    localStorage.setItem('medyart_gallery', JSON.stringify(photos));
+    localStorage.setItem('medyart_gallery_items', JSON.stringify(photos));
   }, [photos]);
 
-  const handleEmailLogin = (e) => {
+  useEffect(() => {
+    localStorage.setItem('medyart_2fa', is2FAEnabled);
+  }, [is2FAEnabled]);
+
+  const handleLogin = (e) => {
     e.preventDefault();
-    if (!email.includes('@')) return alert("Please enter a valid email address!");
-    const sessionData = { email };
-    setUser(sessionData);
-    localStorage.setItem('medyart_session', JSON.stringify(sessionData));
+    if (!email.includes('@')) return alert("Enter a valid email!");
+    const userData = { email, loggedInAt: new Date().toISOString() };
+    setUser(userData);
+    localStorage.setItem('medyart_user_session', JSON.stringify(userData));
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('medyart_session');
+    localStorage.removeItem('medyart_user_session');
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedFile(reader.result);
-      };
+      reader.onloadend = () => setSelectedFile(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePublishPhoto = (e) => {
+  const handlePublish = (e) => {
     e.preventDefault();
-    const finalImage = selectedFile || imageUrl;
-    if (!artTitle || !finalImage) return alert("Please specify a title and provide an image file or direct URL!");
+    const finalImg = selectedFile || imageUrl;
+    if (!artTitle || !finalImg) return alert("Title and image are required!");
 
-    const newArtwork = {
-      id: Date.now(),
-      title: artTitle,
-      image_url: finalImage,
-      likes: 0
-    };
-
-    setPhotos([newArtwork, ...photos]);
+    setPhotos([{ id: Date.now(), title: artTitle, image_url: finalImg, likes: 0 }, ...photos]);
     setArtTitle('');
     setImageUrl('');
     setSelectedFile(null);
   };
 
   return (
-    <div dir={t.dir} style={{
+    <div style={{
       minHeight: '100vh',
-      backgroundImage: `linear-gradient(135deg, rgba(10, 10, 18, 0.85), rgba(15, 10, 25, 0.95)), url('/bg.jpeg')`,
+      backgroundColor: isDark ? '#0a0a12' : '#f3f4f6',
+      backgroundImage: `linear-gradient(${isDark ? 'rgba(10,10,18,0.85), rgba(10,10,18,0.85)' : 'rgba(255,255,255,0.75), rgba(255,255,255,0.75)'}), url('/bg.jpeg')`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
-      color: '#ffffff',
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      paddingBottom: '4rem'
+      color: isDark ? '#ffffff' : '#111827',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      transition: 'all 0.3s ease'
     }}>
-      {/* Curved Header */}
+      {/* Modern Curved Navigation Bar */}
       <nav style={{
         display: 'flex',
         justify: 'space-between',
         alignItems: 'center',
-        padding: '1.2rem 2rem',
-        backgroundColor: `rgba(18, 18, 30, ${glassOpacity})`,
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+        padding: '1rem 2rem',
+        backgroundColor: isDark ? `rgba(18, 18, 30, ${glassOpacity})` : `rgba(255, 255, 255, ${glassOpacity})`,
+        backdropFilter: 'blur(16px)',
+        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
         position: 'sticky',
         top: 0,
         zIndex: 100
       }}>
+        {/* Brand Icon & Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
             src="/icon.jpeg" 
-            alt="MedyArt Logo" 
+            alt="Logo" 
             onError={(e) => { e.target.style.display = 'none'; }}
-            style={{ width: 42, height: 42, borderRadius: '14px', border: '2px solid rgba(168, 85, 247, 0.6)', objectFit: 'cover' }} 
+            style={{ width: 40, height: 40, borderRadius: '12px', border: '2px solid #a855f7', objectFit: 'cover' }} 
           />
-          <span style={{ fontSize: '1.6rem', fontWeight: '800', background: 'linear-gradient(135deg, #c084fc, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <span style={{ fontSize: '1.5rem', fontWeight: '800', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             {t.title}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Opacity Control Slider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{t.opacity}</span>
+        {/* Dynamic Controls Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Light / Dark Mode Toggle */}
+          <button 
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '20px',
+              border: '1px solid rgba(168,85,247,0.4)',
+              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+              color: isDark ? '#fff' : '#000',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            {isDark ? '☀️ Light' : '🌙 Dark'}
+          </button>
+
+          {/* Background Opacity Slider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', padding: '4px 12px', borderRadius: '20px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>{t.opacity}</span>
             <input 
               type="range" 
               min="0.2" 
@@ -129,53 +149,63 @@ export default function App() {
               step="0.05" 
               value={glassOpacity} 
               onChange={(e) => setGlassOpacity(parseFloat(e.target.value))}
-              style={{ accentColor: '#a855f7', cursor: 'pointer', width: '80px' }}
+              style={{ accentColor: '#a855f7', width: '70px', cursor: 'pointer' }}
             />
           </div>
 
-          {/* Language Selection */}
+          {/* Language Selector */}
           <select 
             value={lang} 
             onChange={(e) => setLang(e.target.value)}
-            style={{ backgroundColor: '#181826', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', padding: '6px 12px', fontWeight: '600', cursor: 'pointer' }}
+            style={{ padding: '6px 10px', borderRadius: '12px', border: '1px solid rgba(168,85,247,0.4)', background: isDark ? '#12121c' : '#fff', color: isDark ? '#fff' : '#000', fontWeight: '600' }}
           >
             <option value="en">English</option>
             <option value="fr">Français</option>
             <option value="ar">العربية</option>
-            <option value="es">Español</option>
           </select>
 
           {user && (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setShow2FAModal(!show2FAModal)} style={{ background: 'rgba(168, 85, 247, 0.3)', border: '1px solid #c084fc', color: '#fff', padding: '6px 14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600' }}>
-                🔒 {t.settings}
+            <>
+              <button onClick={() => setShow2FAModal(!show2FAModal)} style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid #a855f7', color: isDark ? '#fff' : '#000', padding: '6px 12px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600' }}>
+                🔒 2FA
               </button>
-              <button onClick={handleLogout} style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '6px 14px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600' }}>
+              <button onClick={handleLogout} style={{ background: '#ef4444', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600' }}>
                 {t.logout}
               </button>
-            </div>
+            </>
           )}
         </div>
       </nav>
 
-      {/* Main Container */}
-      <div style={{ maxWidth: '1000px', margin: '2.5rem auto', padding: '0 1rem' }}>
+      {/* Main Glass Container */}
+      <div style={{ maxWidth: '950px', margin: '2rem auto', padding: '0 1rem' }}>
 
         {/* 2FA Modal */}
         {show2FAModal && user && (
-          <div style={{ backgroundColor: `rgba(24, 24, 38, 0.95)`, borderRadius: '24px', padding: '2rem', marginBottom: '2rem', border: '1px solid rgba(192, 132, 252, 0.4)' }}>
-            <h3 style={{ marginTop: 0 }}>🔒 2FA Security Control</h3>
-            <p style={{ color: '#aaa' }}>Account: <strong>{user.email}</strong></p>
-            <p>Status: <strong style={{ color: is2FAEnabled ? '#10b981' : '#ef4444' }}>{is2FAEnabled ? "Active 🟢" : "Disabled 🔴"}</strong></p>
+          <div style={{
+            backgroundColor: isDark ? 'rgba(20,20,32,0.95)' : 'rgba(255,255,255,0.95)',
+            borderRadius: '24px',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '2px solid #a855f7',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ marginTop: 0 }}>🔐 2-Factor Authentication</h3>
+            <p>User: <strong>{user.email}</strong></p>
+            <p>2FA Status: <strong style={{ color: is2FAEnabled ? '#10b981' : '#ef4444' }}>{is2FAEnabled ? "ENABLED 🟢" : "DISABLED 🔴"}</strong></p>
+            
             {!is2FAEnabled && (
-              <input 
-                type="text" 
-                placeholder="6-digit Auth Code" 
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                style={{ padding: '10px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: '#10101a', color: '#fff', marginRight: '10px' }}
-              />
+              <div style={{ margin: '1rem 0' }}>
+                <input 
+                  type="text" 
+                  placeholder="Enter 6-digit Auth Code" 
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  style={{ padding: '10px', borderRadius: '10px', border: '1px solid #ccc', marginRight: '10px' }}
+                />
+              </div>
             )}
+
             <button 
               onClick={() => { setIs2FAEnabled(!is2FAEnabled); alert(is2FAEnabled ? "2FA Disabled" : "2FA Activated!"); }}
               style={{ padding: '10px 20px', borderRadius: '12px', border: 'none', backgroundColor: is2FAEnabled ? '#ef4444' : '#10b981', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
@@ -185,72 +215,64 @@ export default function App() {
           </div>
         )}
 
-        {/* Login Modal (Email Only) */}
+        {/* Login Form (If no saved session) */}
         {!user ? (
           <div style={{
-            backgroundColor: `rgba(20, 20, 32, ${glassOpacity})`,
+            backgroundColor: isDark ? `rgba(20, 20, 32, ${glassOpacity})` : `rgba(255, 255, 255, ${glassOpacity})`,
             backdropFilter: 'blur(20px)',
             borderRadius: '28px',
             padding: '2.5rem',
-            maxWidth: '400px',
-            margin: '3rem auto',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+            maxWidth: '380px',
+            margin: '4rem auto',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+            boxShadow: '0 25px 50px rgba(0,0,0,0.3)'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <img src="/icon.jpeg" alt="Icon" style={{ width: 56, height: 56, borderRadius: '18px', border: '2px solid #c084fc', marginBottom: '0.8rem' }} />
-              <h2 style={{ margin: 0, fontSize: '1.6rem' }}>{t.login}</h2>
+              <img src="/icon.jpeg" alt="Logo" style={{ width: 56, height: 56, borderRadius: '16px', border: '2px solid #a855f7', marginBottom: '0.5rem' }} />
+              <h2 style={{ margin: 0 }}>{t.login}</h2>
             </div>
 
-            <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '0.8rem', color: '#aaa', display: 'block', marginBottom: '4px' }}>{t.email}</label>
-                <input 
-                  type="email" 
-                  placeholder="user@example.com" 
-                  required 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', backgroundColor: '#0d0d16', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.8rem', color: '#aaa', display: 'block', marginBottom: '4px' }}>{t.password}</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  required 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{ width: '100%', padding: '12px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', backgroundColor: '#0d0d16', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-
-              <button type="submit" style={{ padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: '#fff', fontWeight: '800', cursor: 'pointer', marginTop: '8px' }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input 
+                type="email" 
+                placeholder={t.email} 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ padding: '12px', borderRadius: '14px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000', outline: 'none' }}
+              />
+              <input 
+                type="password" 
+                placeholder={t.password} 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ padding: '12px', borderRadius: '14px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000', outline: 'none' }}
+              />
+              <button type="submit" style={{ padding: '14px', borderRadius: '14px', border: 'none', background: 'linear-gradient(135deg, #a855f7, #ec4899)', color: '#fff', fontWeight: '800', cursor: 'pointer' }}>
                 {t.login}
               </button>
             </form>
           </div>
         ) : (
           <>
-            {/* Upload Area */}
+            {/* Curved Upload Dashboard Panel */}
             <div style={{
-              backgroundColor: `rgba(20, 20, 32, ${glassOpacity})`,
+              backgroundColor: isDark ? `rgba(20, 20, 32, ${glassOpacity})` : `rgba(255, 255, 255, ${glassOpacity})`,
               backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '1.8rem',
+              borderRadius: '28px',
+              padding: '2rem',
               marginBottom: '2.5rem',
-              border: '1px solid rgba(255, 255, 255, 0.12)'
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`
             }}>
-              <h3 style={{ marginTop: 0, fontSize: '1.3rem' }}>✨ {t.upload}</h3>
-              <form onSubmit={handlePublishPhoto} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <h3 style={{ marginTop: 0 }}>✨ {t.upload}</h3>
+              <form onSubmit={handlePublish} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <input 
                   type="text" 
                   placeholder={t.artTitle} 
                   value={artTitle} 
                   onChange={(e) => setArtTitle(e.target.value)}
-                  style={{ padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', backgroundColor: '#0d0d16', color: '#fff', outline: 'none' }}
+                  style={{ padding: '12px 16px', borderRadius: '14px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000' }}
                 />
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -259,11 +281,11 @@ export default function App() {
                     placeholder={t.imageUrl} 
                     value={imageUrl} 
                     onChange={(e) => { setImageUrl(e.target.value); setSelectedFile(null); }}
-                    style={{ padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', backgroundColor: '#0d0d16', color: '#fff', outline: 'none' }}
+                    style={{ padding: '12px 16px', borderRadius: '14px', border: '1px solid #a855f7', background: isDark ? '#0d0d16' : '#fff', color: isDark ? '#fff' : '#000' }}
                   />
 
-                  <label style={{ padding: '12px', borderRadius: '14px', border: '2px dashed #a855f7', backgroundColor: 'rgba(168,85,247,0.1)', color: '#c084fc', textAlign: 'center', cursor: 'pointer', fontWeight: '600' }}>
-                    📁 {selectedFile ? "File Selected!" : t.dragDrop}
+                  <label style={{ padding: '12px', borderRadius: '14px', border: '2px dashed #a855f7', background: 'rgba(168,85,247,0.1)', color: '#a855f7', textAlign: 'center', cursor: 'pointer', fontWeight: '600' }}>
+                    📁 {selectedFile ? "File Ready!" : t.dragDrop}
                     <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
                   </label>
                 </div>
@@ -274,26 +296,26 @@ export default function App() {
               </form>
             </div>
 
-            {/* Gallery Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            {/* Gallery Section */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
               {photos.map((photo) => (
                 <div key={photo.id} style={{
-                  backgroundColor: `rgba(20, 20, 32, ${glassOpacity})`,
-                  borderRadius: '20px',
+                  backgroundColor: isDark ? `rgba(20, 20, 32, ${glassOpacity})` : `rgba(255, 255, 255, ${glassOpacity})`,
+                  borderRadius: '24px',
                   overflow: 'hidden',
-                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
                 }}>
-                  <div onContextMenu={(e) => e.preventDefault()} style={{ position: 'relative', height: '240px', backgroundColor: '#050508' }}>
-                    <img src={photo.image_url} alt={photo.title} draggable="false" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                  <div style={{ position: 'relative', height: '220px', backgroundColor: '#000' }}>
+                    <img src={photo.image_url} alt={photo.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                      <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontWeight: 'bold', fontSize: '0.8rem', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '4px 12px', borderRadius: '8px' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 'bold', fontSize: '0.75rem', border: '1px solid rgba(255,255,255,0.3)', padding: '4px 10px', borderRadius: '8px' }}>
                         {t.protected}
                       </span>
                     </div>
                   </div>
                   <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ margin: 0, fontSize: '1rem' }}>{photo.title}</h4>
-                    <span style={{ color: '#f472b6', fontWeight: 'bold' }}>❤️ {photo.likes}</span>
+                    <h4 style={{ margin: 0 }}>{photo.title}</h4>
+                    <span style={{ color: '#ec4899', fontWeight: 'bold' }}>❤️ {photo.likes}</span>
                   </div>
                 </div>
               ))}
