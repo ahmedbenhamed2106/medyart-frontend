@@ -5,10 +5,10 @@ import UploadModal from '../components/UploadModal';
 import AccountModal from '../components/AccountModal';
 
 const TRANSLATIONS = {
-  en: { upload: '+ Upload', modify: 'Modify Account', opacity: 'Opacity' },
-  fr: { upload: '+ Publier', modify: 'Modifier le Compte', opacity: 'Opacité' },
-  es: { upload: '+ Subir', modify: 'Modificar Cuenta', opacity: 'Opacidad' },
-  ar: { upload: '+ رفع صورة', modify: 'تعديل الحساب', opacity: 'الشفافية' }
+  en: { upload: '+ Upload', modify: 'Modify Account', opacity: 'Opacity', signin: 'Sign In', signout: 'Sign Out' },
+  fr: { upload: '+ Publier', modify: 'Modifier le Compte', opacity: 'Opacité', signin: 'Se Connecter', signout: 'Se Déconnecter' },
+  es: { upload: '+ Subir', modify: 'Modificar Cuenta', opacity: 'Opacidad', signin: 'Iniciar Sesión', signout: 'Cerrar Sesión' },
+  ar: { upload: '+ رفع صورة', modify: 'تعديل الحساب', opacity: 'الشفافية', signin: 'تسجيل الدخول', signout: 'تسجيل الخروج' }
 };
 
 export default function Home() {
@@ -29,10 +29,16 @@ export default function Home() {
     if (activeUser) setUser(activeUser);
   }, []);
 
+  const handleSignOut = () => {
+    localStorage.clear();
+    setUser(null);
+  };
+
   return (
     <div className={`min-h-screen relative font-sans ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}>
       <Head>
         <title>MedyArt</title>
+        <link rel="icon" href="/icon.jpeg" />
       </Head>
 
       <div 
@@ -80,10 +86,13 @@ export default function Home() {
                 <button onClick={() => setShowAccount(true)} className="bg-neutral-900 border border-neutral-800 font-bold text-sm px-4 py-2 rounded-xl text-white">
                   ⚙️ {t.modify}
                 </button>
+                <button onClick={handleSignOut} className="bg-red-600/80 hover:bg-red-600 font-bold text-sm px-4 py-2 rounded-xl text-white">
+                  {t.signout}
+                </button>
               </>
             ) : (
-              <button onClick={() => setShowAuth(true)} className="bg-indigo-600 font-bold text-sm px-6 py-2 rounded-xl text-white">
-                Sign In
+              <button onClick={() => setShowAuth(true)} className="bg-purple-600 hover:bg-purple-500 font-bold text-sm px-6 py-2 rounded-xl text-white">
+                {t.signin}
               </button>
             )}
           </div>
