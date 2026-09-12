@@ -3,170 +3,222 @@ import Head from 'next/head';
 import AuthModal from '../components/AuthModal';
 import UploadModal from '../components/UploadModal';
 import AccountModal from '../components/AccountModal';
-import CheckoutForm from '../components/CheckoutForm';
-
-const PRICING = {
-  '4K': '$10',
-  '1080P': '$5',
-  '4K_PRINT': '$25',
-  'ORIGINAL': '$100'
-};
 
 export default function Home() {
   const [photos, setPhotos] = useState([]);
   const [user, setUser] = useState(null);
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [selectedTier, setSelectedTier] = useState('1080P');
+  const [theme, setTheme] = useState('dark'); // 'dark' or 'light'
+  const [bgOpacity, setBgOpacity] = useState(90);
+  const [activeCommentModal, setActiveCommentModal] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  
   const [showAuth, setShowAuth] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
 
-  const fetchPhotos = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medyart-backend.onrender.com'}/api/photos/`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setPhotos(data);
-      })
-      .catch((err) => console.error("Error fetching photos:", err));
+  const fetchPhotos = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medyart-backend.onrender.com'}/api/photos/`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setPhotos(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   useEffect(() => {
     fetchPhotos();
-    const token = localStorage.getItem('access_token');
+    // Real-time polling every 3 seconds for instant feed updates without page reloads
+    const interval = setInterval(fetchPhotos, 3000);
     const savedUser = localStorage.getItem('username');
-    if (token && savedUser) {
-      setUser(savedUser);
-    }
+    if (savedUser) setUser(savedUser);
+
+    // Screenshot Protection Logic
+    const preventCapture = (e) => {
+      if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText('');
+        alert('Screenshots are disabled on MedyArt.');
+      }
+    };
+    window.addEventListener('keyup', preventCapture);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('keyup', preventCapture);
+    };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('username');
-    setUser(null);
+  const handleVote = async (photoId, voteType) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return setShowAuth(true);
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medyart-backend.onrender.com'}/api/photos/${photoId}/vote/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ vote: voteType })
+    });
+    fetchPhotos();
+  };
+
+  const handleSendComment = async (photoId) => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return setShowAuth(true);
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://medyart-backend.onrender.com'}/api/photos/${photoId}/comment/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ text: commentText })
+    });
+    setCommentText('');
+    fetchPhotos();
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-purple-500 selection:text-white">
+    <div 
+      className={`min-h-screen transition-all select-none ${theme === 'dark' ? 'bg-black text-white' : 'bg-gray-100 text-black'}`}
+      style={{ backgroundColor: theme === 'dark' ? `rgba(0,0,0, ${bgOpacity / 100})` : `rgba(243,244,246, ${bgOpacity / 100})` }}
+    >
       <Head>
-        <title>MedyArt | Exclusive Digital Gallery</title>
-        <meta name="description" content="Digital Art Gallery" />
-        <link rel="icon" href="/icon.jpeg" />
+        <title>MedyArt | Gallery</title>
       </Head>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-center pb-8 mb-8 border-b border-neutral-800">
-          <div className="flex items-center gap-4 mb-4 sm:mb-0">
-            <img src="/icon.jpeg" alt="Logo" className="w-12 h-12 rounded-xl border border-purple-500 object-cover" onError={(e) => e.target.style.display = 'none'} />
-            <div>
-              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-500 to-pink-500 bg-clip-text text-transparent">
-                MedyArt
-              </h1>
-              <p className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Exclusive Digital Gallery</p>
-            </div>
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Top Navbar */}
+        <header className="flex flex-wrap justify-between items-center pb-6 mb-6 border-b border-neutral-800 gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-purple-500">MedyArt</h1>
+            
+            {/* Theme Toggle Button */}
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 bg-neutral-800 text-xs rounded-xl font-bold"
+            >
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Background Transparency Slider */}
+          <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-xs">
+            <span>Opacity:</span>
+            <input 
+              type="range" 
+              min="20" 
+              max="100" 
+              value={bgOpacity} 
+              onChange={(e) => setBgOpacity(e.target.value)} 
+              className="w-24 accent-purple-500 cursor-pointer"
+            />
+            <span>{bgOpacity}%</span>
+          </div>
+
+          {/* User Options */}
+          <div className="flex items-center gap-2">
             {user ? (
               <>
-                <button 
-                  onClick={() => setShowUpload(true)}
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-all shadow-lg"
-                >
-                  + Upload Artwork
-                </button>
-                <button 
-                  onClick={() => setShowAccount(true)}
-                  className="bg-neutral-900 border border-neutral-700 text-neutral-300 hover:text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
-                >
-                  ⚙️ Modify Account
-                </button>
-                <button 
-                  onClick={handleLogout}
-                  className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
-                >
-                  Logout ({user})
-                </button>
+                <button onClick={() => setShowUpload(true)} className="bg-purple-600 px-4 py-2 rounded-xl font-bold text-sm">+ Upload</button>
+                <button onClick={() => setShowAccount(true)} className="bg-neutral-800 px-4 py-2 rounded-xl font-bold text-sm">⚙️ Modify Account</button>
               </>
             ) : (
-              <button 
-                onClick={() => setShowAuth(true)}
-                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-90 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-all shadow-lg"
-              >
-                Sign In
-              </button>
+              <button onClick={() => setShowAuth(true)} className="bg-indigo-600 px-6 py-2 rounded-xl font-bold text-sm">Sign In</button>
             )}
           </div>
         </header>
 
-        {/* Gallery Grid */}
-        {photos.length === 0 ? (
-          <div className="text-center py-20 bg-neutral-900/50 border border-neutral-800 rounded-3xl">
-            <p className="text-neutral-400 font-medium mb-4">No artwork uploaded to MedyArt gallery yet.</p>
-            {user && (
-              <button onClick={() => setShowUpload(true)} className="bg-purple-600 text-white font-bold px-6 py-2.5 rounded-xl">
-                Publish First Artwork
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {photos.map((photo) => (
-              <div key={photo.id} className="bg-neutral-900/80 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg group hover:border-purple-500/50 transition-all">
-                <div className="relative aspect-square bg-black overflow-hidden">
-                  <img src={photo.image_url || photo.image} alt={photo.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                    <span className="text-xs text-cyan-300 font-bold">Click to view resolution options</span>
-                  </div>
-                </div>
-                <div className="p-4 flex justify-between items-center">
-                  <h3 className="font-bold text-lg text-white truncate">{photo.title}</h3>
-                  <button 
-                    onClick={() => { setSelectedPhoto(photo); setShowCheckout(true); }}
-                    className="bg-purple-600/20 border border-purple-500 text-purple-300 hover:bg-purple-600 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
-                  >
-                    Buy Resolution
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Modals */}
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={(username) => { setUser(username); setShowAuth(false); }} />}
-        {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUploadSuccess={() => { fetchPhotos(); setShowUpload(false); }} />}
-        {showAccount && <AccountModal onClose={() => setShowAccount(false)} onUpdateSuccess={(newUsername) => { setUser(newUsername); localStorage.setItem('username', newUsername); }} />}
-
-        {/* Resolution & Stripe Checkout Modal */}
-        {showCheckout && selectedPhoto && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md w-full relative">
-              <button onClick={() => setShowCheckout(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-white">✕</button>
-              <h3 className="text-xl font-bold mb-2">{selectedPhoto.title}</h3>
-              <p className="text-xs text-neutral-400 mb-6">Select resolution tier to proceed with Secure Stripe checkout.</p>
+        {/* Artwork Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {photos.map((photo) => (
+            <div key={photo.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg relative group">
               
-              <div className="space-y-3 mb-6">
-                {Object.entries(PRICING).map(([tier, price]) => (
-                  <button 
-                    key={tier}
-                    onClick={() => setSelectedTier(tier)}
-                    className={`w-full flex justify-between items-center p-3.5 rounded-xl border transition-all ${selectedTier === tier ? 'border-purple-500 bg-purple-500/10 text-white' : 'border-neutral-800 text-neutral-400 hover:border-neutral-700'}`}
-                  >
-                    <span className="font-bold">{tier}</span>
-                    <span className="text-pink-500 font-extrabold">{price} USD</span>
-                  </button>
-                ))}
+              {/* Image Preview Container with Repetitive Protection Watermark */}
+              <div className="relative aspect-square bg-black overflow-hidden pointer-events-none">
+                <img src={photo.image_url} alt={photo.title} className="w-full h-full object-cover" />
+                
+                {/* Embedded MedyArt Watermark Matrix */}
+                <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-25 font-black text-xs text-white uppercase tracking-widest pointer-events-none select-none">
+                  {[...Array(9)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-center -rotate-45">MedyArt Protected</div>
+                  ))}
+                </div>
               </div>
 
-              <CheckoutForm photo={selectedPhoto} resolution={selectedTier} onClose={() => setShowCheckout(false)} />
+              {/* Interaction Details & Free Download */}
+              <div className="p-4 space-y-3">
+                <h3 className="font-bold text-lg">{photo.title}</h3>
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleVote(photo.id, 'like')} 
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${photo.user_vote === 'like' ? 'bg-green-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+                    >
+                      👍 {photo.likes}
+                    </button>
+                    <button 
+                      onClick={() => handleVote(photo.id, 'dislike')} 
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold ${photo.user_vote === 'dislike' ? 'bg-red-600 text-white' : 'bg-neutral-800 text-neutral-300'}`}
+                    >
+                      👎 {photo.dislikes}
+                    </button>
+                  </div>
+
+                  <a 
+                    href={photo.image_url} 
+                    download 
+                    className="bg-blue-600/20 text-blue-400 border border-blue-500/30 text-xs px-3 py-1.5 rounded-lg font-bold"
+                  >
+                    Free 480p Download
+                  </a>
+                </div>
+
+                {/* Comment Drawer Trigger */}
+                <button 
+                  onClick={() => { setActiveCommentModal(photo.id); setCommentText(photo.comments.find(c => c.username === user)?.text || ''); }}
+                  className="w-full bg-neutral-800 hover:bg-neutral-700 text-xs py-2 rounded-xl font-bold"
+                >
+                  💬 Comments ({photo.comments.length})
+                </button>
+
+                {/* Comment Interface */}
+                {activeCommentModal === photo.id && (
+                  <div className="mt-3 p-3 bg-neutral-950 border border-neutral-800 rounded-xl space-y-3">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Write or edit your single comment..." 
+                        value={commentText} 
+                        onChange={(e) => setCommentText(e.target.value)} 
+                        className="flex-1 bg-neutral-900 border border-neutral-800 p-2 text-xs rounded-lg text-white"
+                      />
+                      <button onClick={() => handleSendComment(photo.id)} className="bg-purple-600 text-xs px-3 py-2 rounded-lg font-bold">Post</button>
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto space-y-2">
+                      {photo.comments.map((c) => (
+                        <div key={c.id} className="text-xs bg-neutral-900 p-2 rounded-lg">
+                          <span className="font-bold text-purple-400">{c.username}: </span>
+                          <span>{c.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onSuccess={(u) => { setUser(u); setShowAuth(false); }} />}
+        {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUploadSuccess={() => { fetchPhotos(); setShowUpload(false); }} />}
+        {showAccount && <AccountModal onClose={() => setShowAccount(false)} />}
       </main>
     </div>
   );
